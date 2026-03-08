@@ -1,169 +1,114 @@
 <!DOCTYPE html>
 <html>
 <head>
-
 <meta charset="UTF-8">
+<title>EZ Meals</title>
 <meta name="viewport" content="width=device-width,initial-scale=1">
 
-<title>EZ Meals</title>
-
-<link rel="manifest" href="manifest.json">
-
 <style>
+body{font-family:Arial;margin:0;background:#f4f4f4;text-align:center}
+header{padding:20px;position:relative}
+header img{width:200px}
+.settings{position:absolute;right:20px;top:20px;font-size:24px;cursor:pointer}
 
-body{
-font-family:Arial;
-margin:0;
-background:#f2f2f2;
-text-align:center;
-}
-
-header{
-background:white;
-padding:15px;
-box-shadow:0 2px 5px rgba(0,0,0,0.1);
-position:relative;
-}
-
-.settings{
-position:absolute;
-right:20px;
-top:18px;
-font-size:22px;
-cursor:pointer;
-}
-
-.container{
-display:flex;
-flex-wrap:wrap;
-justify-content:center;
-gap:20px;
-padding:20px;
-}
+.container{display:flex;flex-wrap:wrap;justify-content:center;gap:20px;padding:20px}
 
 .card{
-width:200px;
-background:white;
-border-radius:10px;
-box-shadow:0 4px 8px rgba(0,0,0,0.1);
-overflow:hidden;
-cursor:pointer;
+width:220px;background:white;border-radius:12px;
+box-shadow:0 4px 12px rgba(0,0,0,0.1);
+cursor:pointer;perspective:1000px
 }
 
-.card img{
-width:100%;
-height:140px;
-object-fit:cover;
+.card-inner{
+position:relative;width:100%;height:250px;
+transition:transform .6s;transform-style:preserve-3d
 }
 
-.card h3{
-margin:10px;
+.card.flip .card-inner{transform:rotateY(180deg)}
+
+.card-front,.card-back{
+position:absolute;width:100%;height:100%;
+backface-visibility:hidden;border-radius:12px
 }
 
-.qty{
-display:flex;
-justify-content:center;
-gap:10px;
-padding:10px;
+.card-front img{width:100%;height:160px;object-fit:cover;border-radius:12px 12px 0 0}
+
+.card-front h3{padding:10px}
+
+.card-back{
+background:white;transform:rotateY(180deg);
+padding:15px;display:flex;flex-direction:column;justify-content:center
 }
 
-button{
-padding:6px 12px;
-border:none;
-border-radius:5px;
-background:#28a745;
-color:white;
-cursor:pointer;
+.qty{display:flex;justify-content:center;gap:10px;margin-top:10px}
+
+button{padding:6px 12px;font-size:16px}
+
+.back{margin:15px}
+
+.order{
+margin:20px;padding:14px 30px;font-size:18px;
+background:#25D366;color:white;border:none;border-radius:8px
 }
 
-.total{
-position:fixed;
-bottom:20px;
-right:20px;
-background:#28a745;
-color:white;
-padding:15px;
-border-radius:25px;
-}
-
-.adminBox{
-position:fixed;
-top:0;
-left:0;
-width:100%;
-height:100%;
-background:rgba(0,0,0,0.6);
-display:none;
-align-items:center;
-justify-content:center;
+.totalBubble{
+position:fixed;bottom:20px;right:20px;
+background:#28a745;color:white;
+padding:14px 18px;border-radius:40px;
+font-weight:bold;box-shadow:0 4px 10px rgba(0,0,0,0.2)
 }
 
 .adminPanel{
-background:white;
-padding:20px;
-border-radius:10px;
-width:300px;
+display:none;position:fixed;top:0;left:0;width:100%;height:100%;
+background:rgba(0,0,0,0.5);align-items:center;justify-content:center
 }
 
-.adminPanel input,
-.adminPanel select{
-width:100%;
-margin:6px 0;
-padding:6px;
+.adminBox{
+background:white;padding:25px;border-radius:10px;width:300px
 }
 
-.del{
-background:red;
-}
+.adminBox input,select{width:100%;padding:6px;margin:5px 0}
+
+.adminList{max-height:200px;overflow:auto;text-align:left}
 
 </style>
-
 </head>
 
 <body>
 
 <header>
-
-<h2>EZ Meals</h2>
-
 <div class="settings" onclick="openAdmin()">⚙️</div>
-
+<img src="logo.png">
 </header>
 
 <div id="packs" class="container"></div>
 
 <div id="items"></div>
 
-<div class="total">
+<div class="totalBubble">Total Rs <span id="total">0</span></div>
 
-Total Rs <span id="total">0</span>
+<button class="order" onclick="order()">Order via WhatsApp</button>
 
-<br><br>
-
-<button onclick="order()">Order WhatsApp</button>
-
-</div>
-
-<div id="adminLogin" class="adminBox">
-
-<div class="adminPanel">
+<div id="adminLogin" class="adminPanel">
+<div class="adminBox">
 
 <h3>Admin Login</h3>
 
 <input id="user" placeholder="Username">
 <input id="pass" type="password" placeholder="Password">
-
 <button onclick="login()">Login</button>
 
 <div id="adminControls" style="display:none">
 
 <h3>Add Item</h3>
 
-<input id="iname" placeholder="Name">
+<input id="iname" placeholder="Item name">
+
 <input id="idesc" placeholder="Description">
+
 <input id="iprice" placeholder="Price per 100g">
 
-<input type="file" id="iimg">
+<input id="iimg" placeholder="Image URL">
 
 <select id="ipack">
 <option value="fruits">Fruit Pack</option>
@@ -173,81 +118,106 @@ Total Rs <span id="total">0</span>
 
 <button onclick="addItem()">Add</button>
 
-</div>
+<h3>Items</h3>
+
+<div id="adminList" class="adminList"></div>
 
 </div>
 
+</div>
 </div>
 
 <script>
 
-let data=JSON.parse(localStorage.getItem("ezdata"))||{
-fruits:[],
-soup:[],
-curry:[]
+let packs=["fruits","soup","curry"]
+
+let data=JSON.parse(localStorage.getItem("ezdata")) || {
+
+fruits:[
+{name:"Mango",desc:"Fresh mango pieces",price:200,img:"https://images.unsplash.com/photo-1605027990121-0a1f9b9e6f3c"}
+],
+
+soup:[
+{name:"Potato",desc:"Fresh potato soup pack",price:150,img:"https://images.unsplash.com/photo-1547592166-23ac45744acd"}
+],
+
+curry:[
+{name:"Chicken",desc:"Fresh chicken curry pack",price:500,img:"https://images.unsplash.com/photo-1604908176997-4310b9c84e13"}
+]
+
 }
 
 let cart={}
 let total=0
-let admin=false
+
+function save(){
+localStorage.setItem("ezdata",JSON.stringify(data))
+}
 
 function renderPacks(){
 
-document.getElementById("packs").innerHTML=`
+let html=""
 
-<div class="card" onclick="openPack('fruits')">
-<img src="https://source.unsplash.com/400x300/?fruit">
-<h3>Fruit Packs</h3>
+packs.forEach(p=>{
+
+html+=`
+<div class="card" onclick="openPack('${p}')">
+<div class="card-inner">
+<div class="card-front">
+<img src="https://source.unsplash.com/400x300/?${p}">
+<h3>${p.toUpperCase()} PACKS</h3>
 </div>
-
-<div class="card" onclick="openPack('soup')">
-<img src="https://source.unsplash.com/400x300/?soup">
-<h3>Soup Packs</h3>
 </div>
-
-<div class="card" onclick="openPack('curry')">
-<img src="https://source.unsplash.com/400x300/?curry">
-<h3>Curry Packs</h3>
 </div>
-
 `
+
+})
+
+document.getElementById("packs").innerHTML=html
 
 }
 
 renderPacks()
 
-function openPack(type){
+function openPack(p){
 
 document.getElementById("packs").style.display="none"
 
-let html=`<button onclick="location.reload()">⬅ Back</button><div class="container">`
+let html=`<button class="back" onclick="location.reload()">⬅ Back</button><div class="container">`
 
-data[type].forEach(i=>{
+data[p].forEach((i,index)=>{
 
-if(!cart[i.name]) cart[i.name]={g:0,price:i.price}
+if(!cart[i.name])cart[i.name]={g:0,price:i.price}
 
 html+=`
 
-<div class="card">
+<div class="card" onclick="flip(this)">
+<div class="card-inner">
 
+<div class="card-front">
 <img src="${i.img}">
-
 <h3>${i.name}</h3>
+</div>
 
+<div class="card-back">
+
+<b>${i.name}</b>
 <p>${i.desc}</p>
-
-${admin?`<button class="del" onclick="del('${type}','${i.name}')">Delete</button>`:""}
+<p>Rs ${i.price} /100g</p>
 
 <div class="qty">
 
-<button onclick="change('${i.name}',-100)">-</button>
+<button onclick="change('${i.name}',${i.price},-100,event)">-</button>
 
 <span id="${i.name}">${cart[i.name].g} g</span>
 
-<button onclick="change('${i.name}',100)">+</button>
+<button onclick="change('${i.name}',${i.price},100,event)">+</button>
 
 </div>
 
+</div>
+
+</div>
 </div>
 
 `
@@ -260,19 +230,24 @@ document.getElementById("items").innerHTML=html
 
 }
 
-function change(n,v){
+function flip(el){
+el.classList.toggle("flip")
+}
 
-cart[n].g+=v
+function change(name,price,val,e){
 
-if(cart[n].g<0) cart[n].g=0
+e.stopPropagation()
 
-document.getElementById(n).innerText=cart[n].g+" g"
+cart[name].g+=val
+if(cart[name].g<0)cart[name].g=0
 
-calc()
+document.getElementById(name).innerText=cart[name].g+" g"
+
+updateTotal()
 
 }
 
-function calc(){
+function updateTotal(){
 
 total=0
 
@@ -281,7 +256,9 @@ for(let i in cart){
 let g=cart[i].g
 let p=cart[i].price
 
-if(g>0) total+=(g/100)*p
+if(g>0){
+total+=(g/100)*p
+}
 
 }
 
@@ -296,9 +273,7 @@ let msg="Hello EZ Meals%0AOrder:%0A"
 for(let i in cart){
 
 if(cart[i].g>0){
-
 msg+=i+" "+cart[i].g+"g%0A"
-
 }
 
 }
@@ -310,20 +285,15 @@ window.open("https://wa.me/94762522078?text="+msg)
 }
 
 function openAdmin(){
-
 document.getElementById("adminLogin").style.display="flex"
-
 }
 
 function login(){
 
 if(user.value==="ezmealadmin" && pass.value==="9999"){
 
-admin=true
-
 document.getElementById("adminControls").style.display="block"
-
-alert("Admin Logged")
+renderAdmin()
 
 }
 
@@ -331,38 +301,48 @@ alert("Admin Logged")
 
 function addItem(){
 
-let f=document.getElementById("iimg").files[0]
-
-let r=new FileReader()
-
-r.onload=function(){
-
 let item={
 name:iname.value,
 desc:idesc.value,
 price:Number(iprice.value),
-img:r.result
+img:iimg.value
 }
 
 data[ipack.value].push(item)
 
-localStorage.setItem("ezdata",JSON.stringify(data))
-
-alert("Item Added")
-
-}
-
-r.readAsDataURL(f)
+save()
+renderAdmin()
+renderPacks()
 
 }
 
-function del(type,name){
+function renderAdmin(){
 
-data[type]=data[type].filter(i=>i.name!==name)
+let html=""
 
-localStorage.setItem("ezdata",JSON.stringify(data))
+for(let p in data){
 
-location.reload()
+data[p].forEach((i,idx)=>{
+
+html+=`
+${i.name} (${p})
+<button onclick="del('${p}',${idx})">❌</button><br>
+`
+
+})
+
+}
+
+document.getElementById("adminList").innerHTML=html
+
+}
+
+function del(p,i){
+
+data[p].splice(i,1)
+
+save()
+renderAdmin()
 
 }
 
